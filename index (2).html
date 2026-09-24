@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Quadro de Avisos</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📌</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --board:#24514C; --board-2:#1C413D; --paper:#FBF8F1; --ink:#1E2624; --muted:#5E6B68;
+  --line:#E3DDD0; --focus:#F2B84B;
+  --c-prova:#D6453D; --c-trabalho:#E39A2D; --c-evento:#3F7FD1; --c-mudanca:#8E5BC7; --c-geral:#6F8F86;
+  --shadow:0 1px 0 rgba(0,0,0,.08), 0 8px 18px -10px rgba(0,0,0,.45);
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --board:#142B29; --board-2:#0F2220; --paper:#1E2A28; --ink:#EEF1EE; --muted:#9FB0AC; --line:#2F3F3C;
+  }
+}
+:root[data-theme="dark"]{
+  --board:#142B29; --board-2:#0F2220; --paper:#1E2A28; --ink:#EEF1EE; --muted:#9FB0AC; --line:#2F3F3C;
+}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{
+  margin:0; min-height:100vh; color:var(--ink);
+  font-family:"Atkinson Hyperlegible",system-ui,-apple-system,"Segoe UI",sans-serif; font-size:16px; line-height:1.5;
+  background:var(--board);
+  background-image:radial-gradient(rgba(255,255,255,.035) 1px,transparent 1px);
+  background-size:6px 6px;
+}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+
+.wrap{max-width:1100px;margin:0 auto;padding:28px 18px 60px}
+
+header.top{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:22px}
+h1{
+  font-family:"Bricolage Grotesque",system-ui,sans-serif; font-weight:800; margin:0;
+  color:#FBF8F1; font-size:clamp(2.2rem,6vw,3.6rem); line-height:.95; letter-spacing:-.02em;
+}
+.sub{color:rgba(251,248,241,.72);margin:.4rem 0 0;font-size:.98rem}
+.btn{
+  border:0;border-radius:10px;padding:.7rem 1.1rem;cursor:pointer;font-weight:700;
+  background:var(--focus);color:#1E2624;
+}
+.btn.ghost{background:transparent;color:#FBF8F1;border:1.5px solid rgba(251,248,241,.35)}
+.btn.small{padding:.45rem .8rem;font-size:.9rem}
+.actions{display:flex;gap:8px;flex-wrap:wrap}
+
+/* Próximos dias */
+.soon{
+  background:var(--board-2);border-radius:14px;padding:14px 16px;margin-bottom:18px;color:#FBF8F1;
+}
+.soon h2{font-family:"Bricolage Grotesque",sans-serif;font-size:1.05rem;margin:0 0 10px;font-weight:700}
+.soon-list{display:flex;gap:10px;overflow-x:auto;padding-bottom:4px}
+.soon-item{
+  flex:0 0 auto;min-width:170px;max-width:240px;background:rgba(255,255,255,.07);border-radius:10px;padding:10px 12px;
+  border-left:5px solid var(--c);cursor:pointer;text-align:left;color:inherit;border-top:0;border-right:0;border-bottom:0;
+}
+.soon-item .days{font-family:"Bricolage Grotesque",sans-serif;font-weight:800;font-size:1.5rem;line-height:1}
+.soon-item .t{font-size:.92rem;margin-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.soon-empty{color:rgba(251,248,241,.65);font-size:.95rem}
+
+/* Filtros */
+.filters{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:22px}
+.chip{
+  border:1.5px solid rgba(251,248,241,.3);background:transparent;color:#FBF8F1;border-radius:999px;
+  padding:.35rem .85rem;cursor:pointer;font-size:.92rem;display:inline-flex;align-items:center;gap:6px
+}
+.chip .dot{width:9px;height:9px;border-radius:50%;background:var(--c)}
+.chip[aria-pressed="true"]{background:#FBF8F1;color:#1E2624;border-color:#FBF8F1}
+.search{
+  flex:1 1 200px;min-width:180px;border-radius:999px;border:0;padding:.5rem 1rem;background:rgba(255,255,255,.1);color:#FBF8F1
+}
+.search::placeholder{color:rgba(251,248,241,.55)}
+.toggle{color:rgba(251,248,241,.8);font-size:.92rem;display:inline-flex;gap:6px;align-items:center;cursor:pointer}
+
+/* Quadro */
+.board{columns:3 280px;column-gap:22px}
+.note{
+  break-inside:avoid;margin:0 0 22px;background:var(--paper);border-radius:4px;padding:22px 18px 14px;
+  box-shadow:var(--shadow);position:relative;transform:rotate(var(--r,0deg));
+}
+.note::before{ /* fita adesiva com a cor da categoria */
+  content:"";position:absolute;top:-9px;left:50%;width:78px;height:20px;transform:translateX(-50%) rotate(-2deg);
+  background:var(--c);opacity:.85;border-radius:2px;
+}
+.note.pinned{outline:2.5px solid var(--focus)}
+.note.read{opacity:.62}
+.note .cat{font-size:.82rem;font-weight:700;color:var(--c)}
+.note h3{font-family:"Bricolage Grotesque",sans-serif;font-size:1.25rem;line-height:1.2;margin:.2rem 0 .4rem;font-weight:700}
+.note p{margin:0 0 .6rem;white-space:pre-wrap;word-wrap:break-word}
+.meta{display:flex;flex-wrap:wrap;gap:6px 12px;font-size:.88rem;color:var(--muted);margin-bottom:10px}
+.due{font-weight:700;color:var(--ink)}
+.due.late{color:var(--c-prova)}
+.note-actions{display:flex;gap:4px;border-top:1px dashed var(--line);padding-top:8px;flex-wrap:wrap}
+.icon-btn{background:none;border:0;cursor:pointer;padding:.3rem .5rem;border-radius:6px;font-size:.88rem;color:var(--muted)}
+.icon-btn:hover{background:rgba(127,127,127,.12);color:var(--ink)}
+
+.empty{
+  color:#FBF8F1;text-align:center;padding:50px 20px;border:2px dashed rgba(251,248,241,.25);border-radius:14px
+}
+.empty p{margin:.3rem 0 1rem;color:rgba(251,248,241,.7)}
+
+/* Modal */
+dialog{border:0;border-radius:14px;padding:0;background:var(--paper);color:var(--ink);width:min(560px,94vw);max-height:92vh}
+dialog::backdrop{background:rgba(0,0,0,.55)}
+dialog form{padding:22px}
+dialog h2{font-family:"Bricolage Grotesque",sans-serif;margin:0 0 14px;font-size:1.4rem}
+.field{display:flex;flex-direction:column;gap:4px;margin-bottom:12px}
+.field label{font-weight:700;font-size:.92rem}
+.field input,.field select,.field textarea{
+  border:1.5px solid var(--line);border-radius:8px;padding:.55rem .7rem;background:transparent
+}
+.field textarea{min-height:110px;resize:vertical}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.check{display:flex;gap:8px;align-items:center;margin:4px 0 16px}
+.modal-actions{display:flex;justify-content:flex-end;gap:8px}
+.modal-actions .btn.ghost{color:var(--ink);border-color:var(--line)}
+.err{color:var(--c-prova);font-size:.9rem;min-height:1.2em;margin:0 0 6px}
+
+.toast{
+  position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%) translateY(120%);
+  background:#1E2624;color:#FBF8F1;padding:.6rem 1rem;border-radius:10px;transition:transform .25s;z-index:10
+}
+.toast.show{transform:translateX(-50%) translateY(0)}
+
+footer{margin-top:30px;display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+@media (max-width:520px){ .row{grid-template-columns:1fr} .note{transform:none} }
+@media (prefers-reduced-motion:reduce){ .toast{transition:none} }
+</style>
+<style>
+.userbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
+.userbar .who{color:rgba(251,248,241,.8);font-size:.9rem}
+.panel{background:var(--board-2);color:#FBF8F1;border-radius:14px;padding:14px 16px;margin-bottom:18px}
+.panel h2{font-family:"Bricolage Grotesque",sans-serif;font-size:1.05rem;margin:0 0 8px}
+.panel p{margin:.2rem 0 .6rem;color:rgba(251,248,241,.8);font-size:.95rem}
+.uid{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.uid code{background:rgba(255,255,255,.1);padding:.35rem .6rem;border-radius:6px;word-break:break-all;font-size:.85rem}
+.admin-list{list-style:none;padding:0;margin:0 0 10px}
+.admin-list li{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.1)}
+.admin-form{display:flex;gap:8px;flex-wrap:wrap}
+.admin-form input{flex:1 1 180px;border:0;border-radius:8px;padding:.5rem .7rem;background:rgba(255,255,255,.1);color:#FBF8F1}
+.admin-form input::placeholder{color:rgba(251,248,241,.55)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <h1>Quadro de<br>Avisos</h1>
+      <p class="sub" id="resumo">Carregando avisos da turma…</p>
+    </div>
+    <div class="userbar">
+      <span class="who" id="who"></span>
+      <button class="btn" id="btnNovo" hidden>+ Novo aviso</button>
+      <button class="btn ghost small" id="btnGerenciar" hidden>Quem publica</button>
+      <button class="btn ghost small" id="btnEntrar">Entrar para publicar</button>
+      <button class="btn ghost small" id="btnSair" hidden>Sair</button>
+    </div>
+  </header>
+
+  <section class="panel" id="painelPendente" hidden>
+    <h2>Sua conta ainda não publica avisos</h2>
+    <p>Envie este código para quem administra o quadro. Depois que ele liberar, recarregue a página.</p>
+    <div class="uid"><code id="meuUid"></code><button class="btn small" id="btnCopiarUid">Copiar código</button></div>
+  </section>
+
+  <section class="panel" id="painelAdmins" hidden>
+    <h2>Quem publica avisos</h2>
+    <ul class="admin-list" id="listaAdmins"></ul>
+    <div class="admin-form">
+      <input id="novoAdminUid" placeholder="Código da pessoa" aria-label="Código da pessoa">
+      <input id="novoAdminNome" placeholder="Nome (ex.: Maria, representante)" aria-label="Nome">
+      <button class="btn small" id="btnAddAdmin">Liberar publicação</button>
+    </div>
+  </section>
+
+  <section class="soon" aria-labelledby="soonTitle">
+    <h2 id="soonTitle">Nos próximos 7 dias</h2>
+    <div class="soon-list" id="soonList"></div>
+  </section>
+
+  <div class="filters" role="group" aria-label="Filtrar avisos">
+    <div id="chips" style="display:contents"></div>
+    <input class="search" id="busca" type="search" placeholder="Buscar por título, texto ou matéria" aria-label="Buscar avisos">
+    <label class="toggle"><input type="checkbox" id="ocultarLidos"> Ocultar lidos</label>
+  </div>
+
+  <main class="board" id="board" aria-live="polite"></main>
+</div>
+
+<dialog id="modal">
+  <form method="dialog" id="form">
+    <h2 id="modalTitulo">Novo aviso</h2>
+    <div class="field">
+      <label for="fTitulo">Título</label>
+      <input id="fTitulo" maxlength="90" placeholder="Ex.: Prova de Bioquímica">
+    </div>
+    <div class="row">
+      <div class="field">
+        <label for="fCat">Tipo</label>
+        <select id="fCat"></select>
+      </div>
+      <div class="field">
+        <label for="fMateria">Matéria</label>
+        <input id="fMateria" list="materias" maxlength="60" placeholder="Opcional">
+        <datalist id="materias"></datalist>
+      </div>
+    </div>
+    <div class="row">
+      <div class="field">
+        <label for="fData">Data</label>
+        <input id="fData" type="date">
+      </div>
+      <div class="field">
+        <label for="fHora">Horário</label>
+        <input id="fHora" type="time">
+      </div>
+    </div>
+    <div class="field">
+      <label for="fTexto">Detalhes</label>
+      <textarea id="fTexto" maxlength="2000" placeholder="Conteúdo da prova, sala, o que levar…"></textarea>
+    </div>
+    <label class="check"><input type="checkbox" id="fFixar"> Fixar no topo</label>
+    <p class="err" id="erro"></p>
+    <div class="modal-actions">
+      <button type="button" class="btn ghost" id="btnCancelar">Cancelar</button>
+      <button type="submit" class="btn" id="btnSalvar">Publicar aviso</button>
+    </div>
+  </form>
+</dialog>
+
+<div class="toast" id="toast" role="status"></div>
+
+<script type="module">
+/* =========================================================
+   1) COLE AQUI A CONFIGURAÇÃO DO SEU PROJETO FIREBASE
+   (Console do Firebase > Configurações do projeto > Seus apps > Web)
+   ========================================================= */
+const firebaseConfig = {
+  apiKey: "COLE_AQUI",
+  authDomain: "COLE_AQUI.firebaseapp.com",
+  projectId: "COLE_AQUI",
+  storageBucket: "COLE_AQUI.appspot.com",
+  messagingSenderId: "COLE_AQUI",
+  appId: "COLE_AQUI"
+};
+
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged }
+  from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { getFirestore, collection, doc, onSnapshot, addDoc, updateDoc, deleteDoc, setDoc, getDoc, serverTimestamp }
+  from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+const CATS = {
+  prova:{nome:"Prova",cor:"var(--c-prova)"},
+  trabalho:{nome:"Trabalho",cor:"var(--c-trabalho)"},
+  evento:{nome:"Evento",cor:"var(--c-evento)"},
+  mudanca:{nome:"Mudança de aula",cor:"var(--c-mudanca)"},
+  geral:{nome:"Recado geral",cor:"var(--c-geral)"}
+};
+const LIDOS_KEY = "quadro-avisos-lidos";
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+function lerLocal(k, pad){ try{ return JSON.parse(localStorage.getItem(k)) ?? pad; }catch(e){ return pad; } }
+function gravarLocal(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
+
+let avisos = [], carregado = false, erroCarga = false;
+let usuario = null, ehAdmin = false;
+let filtro = "todos", editandoId = null;
+let lidos = new Set(lerLocal(LIDOS_KEY, []));
+let pararAdmins = null;
+
+const configurado = !Object.values(firebaseConfig).some(v => String(v).includes("COLE_AQUI"));
+let auth, dbf;
+if(configurado){
+  const app = initializeApp(firebaseConfig);
+  auth = getAuth(app);
+  dbf = getFirestore(app);
+}
+
+/* ---------- datas ---------- */
+function hoje0(){ const d = new Date(); d.setHours(0,0,0,0); return d; }
+function diasAte(data){
+  if(!data) return null;
+  const [y,m,d] = data.split("-").map(Number);
+  return Math.round((new Date(y,m-1,d) - hoje0()) / 86400000);
+}
+function textoPrazo(n){
+  if(n === null) return "";
+  if(n < 0) return n === -1 ? "foi ontem" : `há ${-n} dias`;
+  if(n === 0) return "hoje";
+  if(n === 1) return "amanhã";
+  return `em ${n} dias`;
+}
+function dataBR(data, hora){
+  if(!data) return "";
+  const [y,m,d] = data.split("-");
+  return `${d}/${m}/${y}` + (hora ? ` às ${hora}` : "");
+}
+const ehLido = a => lidos.has(a.id);
+const criadoMs = a => a.criado?.toMillis ? a.criado.toMillis() : (a.criado || Date.now());
+
+/* ---------- render ---------- */
+function renderChips(){
+  const lista = [["todos","Todos",null], ...Object.entries(CATS).map(([k,v]) => [k,v.nome,v.cor])];
+  $("chips").innerHTML = lista.map(([k,n,c]) => {
+    const qtd = k === "todos" ? avisos.length : avisos.filter(a => a.cat === k).length;
+    return `<button class="chip" data-f="${k}" aria-pressed="${filtro===k}" ${c?`style="--c:${c}"`:""}>
+      ${c?'<span class="dot"></span>':""}${n} <span aria-label="${qtd} avisos">(${qtd})</span></button>`;
+  }).join("");
+}
+
+function renderProximos(){
+  const prox = avisos
+    .filter(a => { const n = diasAte(a.data); return n !== null && n >= 0 && n <= 7 && !ehLido(a); })
+    .sort((a,b) => (a.data + (a.hora||"")).localeCompare(b.data + (b.hora||"")));
+  $("soonList").innerHTML = prox.length
+    ? prox.map(a => `<button class="soon-item" data-go="${esc(a.id)}" style="--c:${CATS[a.cat].cor}">
+        <div class="days">${esc(textoPrazo(diasAte(a.data)))}</div>
+        <div class="t">${esc(a.titulo)}</div></button>`).join("")
+    : `<p class="soon-empty">${carregado ? "Nada marcado para esta semana." : "Carregando…"}</p>`;
+}
+
+function vazio(titulo, texto, botao){
+  return `<div class="empty" style="column-span:all">
+    ${titulo?`<h3 style="font-family:'Bricolage Grotesque',sans-serif;margin:0;font-size:1.4rem">${titulo}</h3>`:""}
+    <p>${texto}</p>${botao||""}</div>`;
+}
+
+function renderQuadro(){
+  const board = $("board");
+  if(!configurado){ board.innerHTML = vazio("Falta configurar o Firebase", "Cole a configuração do seu projeto no início do código (procure por COLE_AQUI)."); return; }
+  if(erroCarga){ board.innerHTML = vazio("Não foi possível carregar os avisos", "Verifique sua conexão e recarregue a página."); return; }
+  if(!carregado){ board.innerHTML = vazio("", "Carregando avisos da turma…"); return; }
+
+  const q = $("busca").value.trim().toLowerCase();
+  const ocultar = $("ocultarLidos").checked;
+  let lista = avisos.filter(a =>
+    (filtro === "todos" || a.cat === filtro) &&
+    (!ocultar || !ehLido(a)) &&
+    (!q || [a.titulo,a.texto,a.materia].join(" ").toLowerCase().includes(q))
+  );
+  lista.sort((a,b) => {
+    if(!!a.fixado !== !!b.fixado) return a.fixado ? -1 : 1;
+    if(ehLido(a) !== ehLido(b)) return ehLido(a) ? 1 : -1;
+    const da = diasAte(a.data), dbb = diasAte(b.data);
+    const fa = da === null || da < 0, fb = dbb === null || dbb < 0;
+    if(fa !== fb) return fa ? 1 : -1;
+    if(!fa && da !== dbb) return da - dbb;
+    return criadoMs(b) - criadoMs(a);
+  });
+
+  if(!avisos.length){
+    board.innerHTML = vazio("Nenhum aviso publicado ainda",
+      ehAdmin ? "Publique a próxima prova, uma entrega ou um recado para a turma." : "Quando alguém publicar um aviso, ele aparece aqui na hora.",
+      ehAdmin ? '<button class="btn" data-novo>+ Novo aviso</button>' : "");
+    return;
+  }
+  if(!lista.length){ board.innerHTML = vazio("", "Nenhum aviso com esse filtro."); return; }
+
+  board.innerHTML = lista.map(a => {
+    const n = diasAte(a.data);
+    const rot = ((Math.floor(criadoMs(a)/1000) % 5) - 2) * 0.35;
+    return `<article class="note ${a.fixado?"pinned":""} ${ehLido(a)?"read":""}" id="n-${esc(a.id)}" style="--c:${CATS[a.cat].cor};--r:${rot}deg">
+      <div class="cat">${esc(CATS[a.cat].nome)}${a.fixado?" · fixado":""}</div>
+      <h3>${esc(a.titulo)}</h3>
+      <div class="meta">
+        ${a.materia?`<span>${esc(a.materia)}</span>`:""}
+        ${a.data?`<span>${esc(dataBR(a.data,a.hora))}</span><span class="due ${n<0?"late":""}">${esc(textoPrazo(n))}</span>`:""}
+      </div>
+      ${a.texto?`<p>${esc(a.texto)}</p>`:""}
+      ${a.autorNome?`<div class="meta">Publicado por ${esc(a.autorNome)}</div>`:""}
+      <div class="note-actions">
+        <button class="icon-btn" data-act="lido" data-id="${esc(a.id)}">${ehLido(a)?"Marcar como não lido":"Marcar como lido"}</button>
+        ${ehAdmin ? `
+        <button class="icon-btn" data-act="fixar" data-id="${esc(a.id)}">${a.fixado?"Desafixar":"Fixar"}</button>
+        <button class="icon-btn" data-act="editar" data-id="${esc(a.id)}">Editar</button>
+        <button class="icon-btn" data-act="excluir" data-id="${esc(a.id)}">Excluir</button>` : ""}
+      </div>
+    </article>`;
+  }).join("");
+}
+
+function renderResumo(){
+  if(!carregado) return;
+  const pend = avisos.filter(a => !ehLido(a)).length;
+  const provas = avisos.filter(a => a.cat==="prova" && !ehLido(a) && diasAte(a.data)!==null && diasAte(a.data)>=0).length;
+  $("resumo").textContent = avisos.length
+    ? `${pend} ${pend===1?"aviso não lido":"avisos não lidos"}${provas?` · ${provas} ${provas===1?"prova marcada":"provas marcadas"}`:""}`
+    : "Provas, trabalhos e recados da turma num lugar só.";
+}
+
+function renderMaterias(){
+  const ms = [...new Set(avisos.map(a => a.materia).filter(Boolean))].sort();
+  $("materias").innerHTML = ms.map(m => `<option value="${esc(m)}">`).join("");
+}
+
+function renderUsuario(){
+  $("btnEntrar").hidden = !!usuario || !configurado;
+  $("btnSair").hidden = !usuario;
+  $("who").textContent = usuario ? (usuario.displayName || usuario.email || "") : "";
+  $("btnNovo").hidden = !ehAdmin;
+  $("btnGerenciar").hidden = !ehAdmin;
+  $("painelPendente").hidden = !(usuario && !ehAdmin);
+  if(usuario) $("meuUid").textContent = usuario.uid;
+  if(!ehAdmin) $("painelAdmins").hidden = true;
+}
+
+function render(){ renderChips(); renderProximos(); renderQuadro(); renderResumo(); renderMaterias(); renderUsuario(); }
+
+/* ---------- utilidades ---------- */
+let toastT;
+function toast(msg){
+  $("toast").textContent = msg; $("toast").classList.add("show");
+  clearTimeout(toastT); toastT = setTimeout(() => $("toast").classList.remove("show"), 2600);
+}
+function msgErro(e){
+  if(e?.code === "permission-denied") return "Sua conta não tem permissão para isso.";
+  if(e?.code === "unavailable") return "Sem conexão. Tente de novo em instantes.";
+  return "Não foi possível salvar. Tente de novo.";
+}
+async function escrever(fn){
+  try{ await fn(); return true; }catch(e){ console.error(e); toast(msgErro(e)); return false; }
+}
+
+function abrirModal(aviso){
+  editandoId = aviso ? aviso.id : null;
+  $("modalTitulo").textContent = aviso ? "Editar aviso" : "Novo aviso";
+  $("btnSalvar").textContent = aviso ? "Salvar alterações" : "Publicar aviso";
+  $("fTitulo").value = aviso?.titulo || "";
+  $("fCat").value = aviso?.cat || (filtro !== "todos" ? filtro : "prova");
+  $("fMateria").value = aviso?.materia || "";
+  $("fData").value = aviso?.data || "";
+  $("fHora").value = aviso?.hora || "";
+  $("fTexto").value = aviso?.texto || "";
+  $("fFixar").checked = !!aviso?.fixado;
+  $("erro").textContent = "";
+  $("modal").showModal();
+  $("fTitulo").focus();
+}
+
+/* ---------- gerenciar quem publica ---------- */
+function abrirAdmins(){
+  const painel = $("painelAdmins");
+  painel.hidden = !painel.hidden;
+  if(painel.hidden || pararAdmins) return;
+  pararAdmins = onSnapshot(collection(dbf, "admins"), snap => {
+    const lista = snap.docs.map(d => ({uid:d.id, ...d.data()}));
+    $("listaAdmins").innerHTML = lista.map(a => `<li>
+      <span>${esc(a.nome || "Sem nome")}${a.uid===usuario?.uid?" (você)":""}</span>
+      ${a.uid===usuario?.uid ? "" : `<button class="icon-btn" style="color:#FBF8F1" data-rm-admin="${esc(a.uid)}">Remover</button>`}
+    </li>`).join("");
+  }, () => toast("Não foi possível carregar a lista."));
+}
+
+/* ---------- eventos ---------- */
+$("fCat").innerHTML = Object.entries(CATS).map(([k,v]) => `<option value="${k}">${v.nome}</option>`).join("");
+$("btnNovo").onclick = () => abrirModal();
+$("btnCancelar").onclick = () => $("modal").close();
+$("btnGerenciar").onclick = abrirAdmins;
+$("btnEntrar").onclick = async () => {
+  try{ await signInWithPopup(auth, new GoogleAuthProvider()); }
+  catch(e){ if(e?.code !== "auth/popup-closed-by-user") toast("Não foi possível entrar. Tente de novo."); }
+};
+$("btnSair").onclick = () => signOut(auth);
+$("btnCopiarUid").onclick = async () => {
+  try{ await navigator.clipboard.writeText(usuario.uid); toast("Código copiado"); }
+  catch(e){ toast("Selecione o código e copie manualmente."); }
+};
+$("btnAddAdmin").onclick = async () => {
+  const uid = $("novoAdminUid").value.trim();
+  const nome = $("novoAdminNome").value.trim();
+  if(!uid){ toast("Cole o código da pessoa."); return; }
+  if(await escrever(() => setDoc(doc(dbf, "admins", uid), { nome: nome || "Sem nome", adicionadoPor: usuario.uid }))){
+    $("novoAdminUid").value = ""; $("novoAdminNome").value = "";
+    toast("Publicação liberada");
+  }
+};
+
+$("form").addEventListener("submit", async e => {
+  e.preventDefault();
+  const titulo = $("fTitulo").value.trim();
+  if(!titulo){ $("erro").textContent = "Dê um título ao aviso."; $("fTitulo").focus(); return; }
+  const dados = {
+    titulo, cat:$("fCat").value, materia:$("fMateria").value.trim(),
+    data:$("fData").value, hora:$("fHora").value, texto:$("fTexto").value.trim(), fixado:$("fFixar").checked
+  };
+  $("btnSalvar").disabled = true;
+  let ok;
+  if(editandoId){
+    const id = editandoId;
+    ok = await escrever(() => updateDoc(doc(dbf, "avisos", id), {...dados, editado: serverTimestamp()}));
+    if(ok) toast("Alterações salvas");
+  }else{
+    ok = await escrever(() => addDoc(collection(dbf, "avisos"), {
+      ...dados, autor: usuario.uid, autorNome: usuario.displayName || "", criado: serverTimestamp()
+    }));
+    if(ok) toast("Aviso publicado para a turma");
+  }
+  $("btnSalvar").disabled = false;
+  if(ok) $("modal").close();
+});
+
+document.addEventListener("click", async e => {
+  const chip = e.target.closest("[data-f]");
+  if(chip){ filtro = chip.dataset.f; render(); return; }
+  if(e.target.closest("[data-novo]")){ abrirModal(); return; }
+  const rm = e.target.closest("[data-rm-admin]");
+  if(rm){
+    if(confirm("Tirar a permissão de publicar dessa pessoa?"))
+      if(await escrever(() => deleteDoc(doc(dbf, "admins", rm.dataset.rmAdmin)))) toast("Permissão removida");
+    return;
+  }
+  const go = e.target.closest("[data-go]");
+  if(go){
+    filtro = "todos"; $("busca").value = ""; $("ocultarLidos").checked = false; render();
+    const el = document.getElementById("n-" + go.dataset.go);
+    if(el){ el.scrollIntoView({behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block:"center"}); el.querySelector("button")?.focus({preventScroll:true}); }
+    return;
+  }
+  const b = e.target.closest("[data-act]");
+  if(!b) return;
+  const a = avisos.find(x => x.id === b.dataset.id);
+  if(!a) return;
+  switch(b.dataset.act){
+    case "lido":
+      lidos.has(a.id) ? lidos.delete(a.id) : lidos.add(a.id);
+      gravarLocal(LIDOS_KEY, [...lidos]); render(); break;
+    case "fixar":
+      if(await escrever(() => updateDoc(doc(dbf, "avisos", a.id), {fixado: !a.fixado})))
+        toast(a.fixado ? "Aviso desafixado" : "Aviso fixado");
+      break;
+    case "editar": abrirModal(a); break;
+    case "excluir":
+      if(!confirm(`Excluir "${a.titulo}" para toda a turma?`)) return;
+      if(await escrever(() => deleteDoc(doc(dbf, "avisos", a.id)))) toast("Aviso excluído");
+      break;
+  }
+});
+
+$("busca").addEventListener("input", renderQuadro);
+$("ocultarLidos").addEventListener("change", renderQuadro);
+
+/* ---------- conexão ---------- */
+render();
+if(configurado){
+  onSnapshot(collection(dbf, "avisos"), snap => {
+    avisos = snap.docs.map(d => ({id:d.id, ...d.data()})).filter(a => a.titulo && CATS[a.cat]);
+    carregado = true; erroCarga = false;
+    render();
+  }, err => { console.error(err); erroCarga = true; carregado = true; render(); });
+
+  onAuthStateChanged(auth, async u => {
+    usuario = u; ehAdmin = false;
+    if(pararAdmins){ pararAdmins(); pararAdmins = null; }
+    if(u){
+      try{ ehAdmin = (await getDoc(doc(dbf, "admins", u.uid))).exists(); }catch(e){ ehAdmin = false; }
+    }
+    render();
+  });
+}
+</script>
+</body>
+</html>
